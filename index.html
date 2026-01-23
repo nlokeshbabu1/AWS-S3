@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Static Website | S3 + CloudFront + GitHub Actions</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <h1>🚀 Static Website Deployment</h1>
+    <p>S3 + CloudFront + GitHub Actions</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Architecture</h2>
+      <ul>
+        <li>Amazon S3 (Private Bucket)</li>
+        <li>CloudFront with OAC</li>
+        <li>GitHub Actions CI/CD</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Deployment Status</h2>
+      <p id="status">Waiting for deployment...</p>
+      <button onclick="deploy()">Simulate Deployment</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 | Deployed using AWS & GitHub Actions</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
