@@ -26,27 +26,59 @@ The workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) r
 
 1. Checks out the code.
 2. Configures AWS credentials using repository secrets.
-3. (You should update the workflow to sync files to your S3 bucket.)
-
-**Example sync command:**
-```yaml
-- name: Sync files to S3
-  run: |
-    aws s3 sync . s3://<your-bucket-name> --exclude ".git/*" --exclude ".github/*" --acl public-read
-```
+3. Syncs files to your S3 bucket.
+4. Invalidates CloudFront cache.
 
 ## Setup Instructions
 
-1. **Create an S3 bucket** (private recommended).
-2. **Set up AWS credentials** as GitHub repository secrets:
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-3. **Update the workflow** in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) with your bucket name.
-4. **(Optional)** Configure CloudFront with OAC for secure public access.
+### 1. Create an IAM User and Attach Policy
 
-## Local Development
+- Go to the [IAM Console](https://console.aws.amazon.com/iam/).
+- Click **Users** > **Add users**.
+- Enter a username (e.g., `github-actions-deployer`).
+- Select **Access key - Programmatic access**.
+- Click **Next** and attach the following policy (custom or managed):
 
-Open `index.html` in your browser to preview the site. Use the "Simulate Deployment" button for a mock deployment status.
+#### Example IAM Policy
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "S3DeploymentAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::BUCKET_NAME",
+                "arn:aws:s3:::BUCKET_NAME/*"
+            ]
+        },
+        {
+            "Sid": "CloudFrontInvalidationAccess",
+            "Effect": "Allow",
+            "Action": "cloudfront:CreateInvalidation",
+            "Resource": "arn:aws:cloudfront::ACCOUNT_NUMBER:distribution/DISTRIBUTION_ID"
+        }
+    ]
+}
+```
+Replace `YOUR_BUCKET_NAME` with your actual bucket name.
+Replace `ACCOUNT_NUMBER` with your actual bucket name.
+Replace `DISTRIBUTION_ID` with your actual bucket name.
+
+- Complete the user creation and **download the Access Key ID and Secret Access Key**.
+
+
+### 2. Update the Workflow
+
+Edit [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) and ensure your bucket and distribution IDs are referenced via secrets.
+
+
 
 ## License
 
