@@ -1,0 +1,5 @@
+#Terraform files
+s3-cdn-modules/terraform.tfstate
+s3-cdn-modules/terraform.tfstate.backup
+s3-cdn-modules/.terraform
+s3-cdn-modules/.terraform.lock.hcl
