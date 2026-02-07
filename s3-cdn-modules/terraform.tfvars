@@ -2,7 +2,7 @@
 region = "ap-south-2"
 
 # S3 Bucket Configuration
-bucket_name       = "my-static-website"
+bucket_name       = "my-static-website-blog"
 enable_versioning = true
 
 # IAM User Configuration
