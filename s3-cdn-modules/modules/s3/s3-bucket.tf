@@ -5,7 +5,7 @@ resource "random_id" "bucket_id" {
 resource "aws_s3_bucket" "s3-blog" {
   bucket = "${var.bucket_name}-${random_id.bucket_id.hex}"
 
-  force_destroy = "true"
+  force_destroy = true
 
 }
 
