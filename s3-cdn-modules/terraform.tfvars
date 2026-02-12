@@ -2,7 +2,7 @@
 region = "ap-south-2"
 
 # S3 Bucket Configuration
-bucket_name       = "my-static-website-blog"
+bucket_name       = "my-terraform-s3-cdn-bucket-cicd"
 enable_versioning = true
 
 # IAM User Configuration
