@@ -22,6 +22,7 @@ jobs:
               uses: hashicorp/setup-terraform@v1
               with:
                   terraform_version: latest
+                  terraform_wrapper: false
 
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v1
@@ -45,11 +46,15 @@ jobs:
 
             - name: get bucket output
               id: get_bucket
-              run: echo "s3_bucket_name=$(terraform -chdir=s3-cdn-modules output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+              run: |
+                S3_Bucket_NAME=$(terraform -chdir=s3-cdn-modules output -raw s3_bucket_name)
+                 echo s3_bucket_name=$S3_Bucket_NAME >> $GITHUB_OUTPUT
 
             - name: get cloudfront output
               id: get_cf
-              run: echo "cloudfront_domain_name=$(terraform -chdir=s3-cdn-modules output -raw cloudfront_domain_name)" >> $GITHUB_OUTPUT
+              run:  |
+                CLOUDFRONT_DOMAIN_NAME=$(terraform -chdir=s3-cdn-modules output -raw cloudfront_domain_name)
+                echo cloudfront_domain_name=$CLOUDFRONT_DOMAIN_NAME >> $GITHUB_OUTPUT
 
 
     Deploy_to_s3:
