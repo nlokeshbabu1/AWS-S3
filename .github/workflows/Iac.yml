@@ -10,7 +10,9 @@ on:
 jobs:
     terraform:
         runs-on: ubuntu-latest
-        environment: production
+        outputs:
+            s3_bucket_name: ${{ steps.get_bucket.outputs.s3_bucket_name }}
+            cloudfront_domain_name: ${{ steps.get_cf.outputs.cloudfront_domain_name }}
 
         steps:
             - name: Checkout code
@@ -40,3 +42,38 @@ jobs:
             - name: Apply Terraform changes
               if: github.ref == 'refs/heads/main'
               run: terraform -chdir=s3-cdn-modules apply -auto-approve tfplan
+
+            - name: get bucket output
+              id: get_bucket
+              run: echo "s3_bucket_name=$(terraform -chdir=s3-cdn-modules output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+
+            - name: get cloudfront output
+              id: get_cf
+              run: echo "cloudfront_domain_name=$(terraform -chdir=s3-cdn-modules output -raw cloudfront_domain_name)" >> $GITHUB_OUTPUT
+
+
+    Deploy_to_s3:
+        runs-on: ubuntu-latest
+        needs: terraform
+        environment: production
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ap-south-2
+
+            - name: Sync files to S3
+              run: |
+                  aws s3 sync . s3://${{ needs.terraform.outputs.s3_bucket_name }} \
+                  --exclude "*" \
+                  --include "index.html" \
+                  --include "styles.css" \
+                  --include "script.js" \
+                  --delete
+                
