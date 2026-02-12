@@ -78,7 +78,7 @@ jobs:
                   aws s3 sync . s3://${{ needs.terraform.outputs.s3_bucket_name }} \
                   --exclude "*" \
                   --include "index.html" \
-                  --include "styles.css" \
+                  --include "style.css" \
                   --include "script.js" \
                   --delete
                 
