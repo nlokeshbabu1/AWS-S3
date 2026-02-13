@@ -11,6 +11,10 @@ permissions:
   id-token: write  # This is required for requesting the JWT
   contents: read   # This is required for actions/checkout
 
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
 
 jobs:
     terraform:
@@ -88,4 +92,9 @@ jobs:
                   --include "style.css" \
                   --include "script.js" \
                   --delete
+            - name: Invalidate CloudFront cache
+              run: |
+                aws cloudfront create-invalidation \
+                    --distribution-id $(terraform -chdir=s3-cdn-modules output -raw cloudfront_distribution_id) \
+                    --paths "/*"
                 
