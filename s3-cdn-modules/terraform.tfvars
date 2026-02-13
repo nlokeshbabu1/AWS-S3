@@ -6,4 +6,4 @@ bucket_name       = "my-terraform-s3-cdn-bucket-cicd"
 enable_versioning = true
 
 # IAM User Configuration
-iam_user_name = "s3-cdn-cicd-user"
+iam_user_name = "s3-cdn-cicd"
