@@ -23,8 +23,8 @@ variable "iam_user_name" {
 variable "cloudfront_distribution_arn" {
   description = "ARN of the CloudFront distribution for policy permissions"
   type        = string
-  default     = ""  # Default to empty string if not provided
-  
+  default     = "" # Default to empty string if not provided
+
 }
 
 /*
