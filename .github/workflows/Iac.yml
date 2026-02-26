@@ -1,100 +1,111 @@
-name: Iac CI/CD Pipeline
+name: IaC CI/CD Pipeline
 
 on:
-    push:
-        branches:
-            - main
-        paths:
-            - 's3-cdn-modules/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select environment'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
 
 permissions:
-  id-token: write  # This is required for requesting the JWT
-  contents: read   # This is required for actions/checkout
+  id-token: write
+  contents: read
 
 concurrency:
   group: terraform
   cancel-in-progress: false
 
-
 jobs:
-    terraform:
-        runs-on: ubuntu-latest
-        outputs:
-            s3_bucket_name: ${{ steps.get_bucket.outputs.s3_bucket_name }}
-            cloudfront_domain_name: ${{ steps.get_cf.outputs.cloudfront_domain_name }}
+  terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      s3_bucket_name: ${{ steps.get_bucket.outputs.s3_bucket_name }}
+      cloudfront_domain_name: ${{ steps.get_cf.outputs.cloudfront_domain_name }}
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-            - name: Set up Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: latest
-                  terraform_wrapper: false
+      - name: Set Environment
+        run: |
+          echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
 
-            - name: configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_NUMBER }}:role/github-action-cicd-role
-                aws-region: ${{ secrets.AWS_REGION }}
-                  
-            - name: Initialize Terraform
-              run: terraform -chdir=s3-cdn-modules init
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_NUMBER }}:role/github-action-cicd-role
+          aws-region: ${{ secrets.AWS_REGION }}
 
-            - name: Validate Terraform configuration
-              run: terraform -chdir=s3-cdn-modules validate
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+          terraform_wrapper: false
 
+      - name: Initialize Terraform
+        run: terraform -chdir=s3-cdn-modules init
 
-            - name: Terraform Format Check
-              run: terraform -chdir=s3-cdn-modules fmt -check
+      - name: Select or Create Workspace
+        run: |
+          terraform -chdir=s3-cdn-modules workspace select $ENV || \
+          terraform -chdir=s3-cdn-modules workspace new $ENV
 
-            - name: Plan Terraform changes
-              run: terraform -chdir=s3-cdn-modules plan -out=tfplan
+      - name: Validate Terraform Configuration
+        run: terraform -chdir=s3-cdn-modules validate
 
-            - name: Apply Terraform changes
-              if: github.ref == 'refs/heads/main'
-              run: terraform -chdir=s3-cdn-modules apply -auto-approve tfplan
+      - name: Terraform Format Check
+        run: terraform -chdir=s3-cdn-modules fmt -check
 
-            - name: get bucket output
-              id: get_bucket
-              run: |
-                S3_Bucket_NAME=$(terraform -chdir=s3-cdn-modules output -raw s3_bucket_name)
-                 echo s3_bucket_name=$S3_Bucket_NAME >> $GITHUB_OUTPUT
+      - name: Plan Terraform Changes
+        run: terraform -chdir=s3-cdn-modules plan -out=tfplan
 
-            - name: get cloudfront output
-              id: get_cf
-              run:  |
-                CLOUDFRONT_DOMAIN_NAME=$(terraform -chdir=s3-cdn-modules output -raw cloudfront_domain_name)
-                echo cloudfront_domain_name=$CLOUDFRONT_DOMAIN_NAME >> $GITHUB_OUTPUT
+      - name: Apply Terraform Changes
+        run: terraform -chdir=s3-cdn-modules apply -auto-approve tfplan
 
+      - name: Get S3 Bucket Output
+        id: get_bucket
+        run: |
+          S3_BUCKET_NAME=$(terraform -chdir=s3-cdn-modules output -raw s3_bucket_name)
+          echo s3_bucket_name=$S3_BUCKET_NAME >> $GITHUB_OUTPUT
 
-    Deploy_to_s3:
-        runs-on: ubuntu-latest
-        needs: terraform
-        environment: production
+      - name: Get CloudFront Output
+        id: get_cf
+        run: |
+          CLOUDFRONT_DOMAIN_NAME=$(terraform -chdir=s3-cdn-modules output -raw cloudfront_domain_name)
+          echo cloudfront_domain_name=$CLOUDFRONT_DOMAIN_NAME >> $GITHUB_OUTPUT
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v2
+  deploy_to_s3:
+    runs-on: ubuntu-latest
+    needs: terraform
+    environment: ${{ env.ENV }}
 
-            - name: configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_NUMBER }}:role/github-action-cicd-role
-                aws-region: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-            - name: Sync files to S3
-              run: |
-                  aws s3 sync . s3://${{ needs.terraform.outputs.s3_bucket_name }} \
-                  --exclude "*" \
-                  --include "index.html" \
-                  --include "style.css" \
-                  --include "script.js" \
-                  --delete
-            - name: Invalidate CloudFront cache
-              run: |
-                aws cloudfront create-invalidation \
-                    --distribution-id $(terraform -chdir=s3-cdn-modules output -raw cloudfront_distribution_id) \
-                    --paths "/*"
-                
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_NUMBER }}:role/github-action-cicd-role
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Sync Files to S3
+        run: |
+          aws s3 sync . s3://${{ needs.terraform.outputs.s3_bucket_name }} \
+            --exclude "*" \
+            --include "index.html" \
+            --include "style.css" \
+            --include "script.js" \
+            --delete
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id $(terraform -chdir=s3-cdn-modules output -raw cloudfront_distribution_id) \
+            --paths "/*"
