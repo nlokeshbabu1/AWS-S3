@@ -83,7 +83,6 @@ jobs:
   deploy_to_s3:
     runs-on: ubuntu-latest
     needs: terraform
-    environment: ${{ env.ENV }}
 
     steps:
       - name: Checkout code
