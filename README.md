@@ -12,24 +12,43 @@ This repository contains a simple static website and a GitHub Actions workflow f
 ## Repository Structure
 
 ```
-index.html              # Main HTML file
-style.css               # Stylesheet
-script.js               # Deployment simulation script
-LICENSE                 # Apache 2.0 License
-.github/
-  workflows/
-    deploy.yml          # GitHub Actions workflow for S3 deployment
-s3-cdn-modules/         # Terraform modules for S3 + CloudFront infrastructure
-  ├── modules/
-  │   ├── s3/           # S3 bucket module
-  │   ├── cdn/          # CloudFront distribution module
-  │   └── iam/          # IAM user and policy module
-  ├── main.tf           # Main Terraform configuration
-  ├── variables.tf      # Variable definitions
-  ├── provider.tf       # Provider configuration
-  ├── backend.tf        # Backend configuration
-  └── terraform.tfvars  # Variable values
+AWS-S3/
+├── index.html
+├── style.css
+├── script.js
+├── LICENSE
+├── .github/
+│   └── workflows/
+│       ├── deploy.yml
+│       └── Iac.yml
+└── s3-cdn-modules/
+    ├── modules/
+    │   ├── s3/
+    │   ├── cdn/
+    │   └── iam/
+    ├── dev/
+    │   ├── backend.tf
+    │   ├── main.tf
+    │   ├── output.tf
+    │   ├── provider.tf
+    │   ├── terraform.tfvars
+    │   └── variable.tf
+    ├── stage/
+    │   ├── backend.tf
+    │   ├── main.tf
+    │   ├── output.tf
+    │   ├── provider.tf
+    │   ├── terraform.tfvars
+    │   └── variable.tf
+    └── prod/
+        ├── backend.tf
+        ├── main.tf
+        ├── output.tf
+        ├── provider.tf
+        ├── terraform.tfvars
+        └── variable.tf
 ```
+- Each environment (`dev`, `stage`, `prod`) has its own directory with separate Terraform configuration files, allowing isolated infrastructure and state management for multi-stage deployments.
 
 ## Infrastructure as Code (Terraform)
 
