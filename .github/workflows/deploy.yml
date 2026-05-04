@@ -1,39 +1,59 @@
-name: Deploy to AWS S3
-
+name: Security Pipeline
 on:
-    push:
-        branches:
-            - main
-        paths:
-            - 'index.html'
-            - 'styles.css'
-            - 'script.js'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
-#        environment: production
+  security-scanning:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v2
+    # SAST - Static Application Security Testing
+    - name: Run Semgrep SAST
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/owasp-top-ten
 
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@v1
-              with:
-                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: us-east-1
+    # Dependency scanning
+    - name: Run Trivy FS scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
 
-            - name: Sync files to S3
-              run: |
-                  aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} \
-                  --exclude "*" \
-                  --include "index.html" \
-                  --include "styles.css" \
-                  --include "script.js" \
-                  --delete
-            
-            - name: Invalidate CloudFront Cache
-              run: |
-                  aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+    # Upload SARIF to GitHub Security tab
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    # Container scanning
+    - name: Build and scan Docker image
+      uses: docker/build-push-action@v5
+      with:
+        push: false
+        tags: app:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run Trivy image scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'image'
+        image-ref: app:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-image-results.sarif'
+
+    # Secret scanning
+    - name: Secret scanning with Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
